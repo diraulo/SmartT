@@ -1,4 +1,8 @@
+
 This is a project developed for the Space App challenge (20 - 21 April 2013)
+
+Challenge: 'Smart Cities, Smart Climate'
+           -----------------------------
 
 Project Overview
 ----------------
