@@ -1,7 +1,7 @@
 This is a project developed for the Space App challenge (20 - 21 April 2013)
 
 Project Overview
-
+----------------
 Bad weather changes have been prevalent in most part of South Africa
 Theses conditions have proven to be quite fatal especially in cities.
 Bad weather conditions affect our daily living in the city. And just
