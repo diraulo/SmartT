@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Smart-T</title>
+    <link href="css/default.css" rel="stylesheet">
+    
+    
+    <script src="scripts/jquery.min.js" type="text/javascript"></script>
+    <script src="scripts/jquery-ui.min.js" type="text/javascript"></script>
+    <script src="scripts/infobubble-compiled.js" type="text/javascript"></script>   
+    <script src="scripts/date.js" type="text/javascript"></script>     
+    <script src="scripts/highcharts.js" type="text/javascript"></script>         
+             
+    <link href="scripts/jquery-ui.css" rel="stylesheet">
+    
+    <link href="css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <script src="scripts/bootstrap.min.js"></script>
+
+    
+
+  </head>
+  <body>
+       <div class="span12">
+          <H1><span style="color:red">Smart Traffic</span></H1>
+       </div>
+
+     <div class="navbar navbar-inverse">
+        <div class="navbar-inner">
+            <ul class="nav pull-right">
+                <li style="font-size:24px"><a href="/">Home</a></li>
+                <li style="font-size:24px"><a href="http://www.house4hack.co.za">About</a></li>
+            </ul>
+        </div>
+     </div>
+     <div class="container">
+
+        <!-- Main hero unit for a primary marketing message or call to action -->
+     </div>  
+
+
+      <div id="map-canvas"></div>
+  </body>
+      <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+    <script>
+      var johburg = new google.maps.LatLng(-25.746559,28.267908);
+
+
+      function initialize() {
+        var mapOptions = {
+          zoom: 12,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          center: johburg
+        };
+
+        map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
+        var trafficLayer = new google.maps.TrafficLayer();
+        trafficLayer.setMap(map);
+        
+         var styles = [
+           {
+              featureType: "all",
+              stylers: [
+                { saturation: -15 },
+                { lightness: -10 },
+              ]
+            },];
+        map.setOptions({styles: styles});
+        
+        
+        updateMap();
+      }
+
+
+     function updateMap(){
+           console.log("in update map");
+           setTimeout("updateMap();",5000);
+           
+           
+           getValuesFromAjax('/couchdb/timestamp?descending=true&limit=10', addToMap, function(message) {alert('failed:'+message)})
+
+     }
+     
+      var popupdiv=$('<div/>', {
+          'id':'Sensor',
+          'text':"Temperature:"
+
+      });
+      var chartdiv=$('<div/>',{
+          'id':'container'
+      });
+      popupdiv.append(chartdiv);
+       
+      
+      var popup = popupdiv.dialog({
+          'autoOpen':false,
+          'width': 800,
+          'height':700,
+          'resizable':false,
+          'modal':false,
+          'title':'Sensor details'
+      });
+
+
+     var icons = {} 
+     var chart;
+     var activeSeriesId;
+      function addToMap(result){ 
+          // Clear the existing icons
+          for(var i in icons){
+             icons[i].setMap(null)
+             icons[i] = null
+          }
+          // Run through the results
+          for(var i in result.rows){
+
+              var image
+              var seriesTitle
+              var readings = result.rows[i].value.readings
+              var timestamp = result.rows[i].value.timestamp
+              var mappingFunction
+              var html = ""             
+                        // Only add one icon per id  
+              if(!icons[readings.id]){             
+
+              
+                timestamp = Date.parseExact(timestamp.substring(0,19),"yyyy-MM-ddTHH:mm:ss");
+                timestamp = Date(timestamp.getTime()- timestamp.getTimezoneOffset()*60*1000);
+                
+                html = "<H3>Last reading</H3><ul><li>Timestamp = "+timestamp + "</li>"
+                if(readings.type == "weather"){
+                  html += "<li>Temperature = "+readings.temperature + "</li></ul>"
+                  seriesTitle = "Temperature [deg C]"
+                  mappingFunction = function(readings) {return(readings.temperature);}                
+                  
+                  if(readings.temperature > 15) {
+                     image = 'icons/frame_basic_hot.png';
+                  } 
+                  else if(readings.temperature < 13) {
+                     image = 'icons/frame_basic_cold.png';
+                  }
+                  else {
+                      image = 'icons/frame_basic_green.png'
+                  }               
+               } else if (readings.type = "power") {
+                  html += "<li>Power = "+readings.power + "</li></ul>"
+                  seriesTitle = "Power [pu]"
+                  mappingFunction = function(readings) {                
+                     if(readings.power =="on") {
+                        return(1)
+                     } else {
+                        return(0)   
+                     }
+                 }    
+
+                 if(readings.power == "on"){
+                     image = 'icons/frame_basic_green.png';
+                  } else {
+                     image = 'icons/frame_basic_red.png';
+                  }               
+                
+                } else {
+                      image = 'icons/frame_basic_green.png'
+                } 
+                var myLatLng = new google.maps.LatLng(readings.lat,readings.lon);
+                var weather_icon = new google.maps.Marker({
+                    position: myLatLng,
+                    map: map,
+                    icon: image
+                });
+
+                // save the readings id so that we can click on it
+                weather_icon.id = readings.id
+                weather_icon.html = html
+                weather_icon.seriesTitle = seriesTitle
+                weather_icon.mappingFunction = mappingFunction
+                google.maps.event.addListener(weather_icon, "click", function(e) {
+                     popup[0].innerHTML = this.html+"<br/><div id='container'/>"
+                     activeSeriesId = this.id
+                     setupChart(this.seriesTitle, this.id, this.mappingFunction);
+                     popup.dialog('open');
+                  });
+                icons[readings.id] = weather_icon  
+             }
+          }    
+       }
+
+     
+    function getValuesFromAjax(url,callback, failback) {
+        $.ajax({
+            url: url,
+            type: "GET",
+            data: "",
+            contentType: "application/json",
+            dataType: "json",
+            success: AjaxCallback,
+            cache: false,
+            error: AjaxFailed
+        });
+
+        function AjaxFailed(result) {
+          if (result.status == 200 && result.statusText.toUpperCase() == "OK") {
+   	        AjaxCallback(eval(result.responseText));
+          }
+          else {
+	        failback("FAILED : " + result.status + ' ' + result.statusText);
+          }
+       }
+       function AjaxCallback(result) {            
+            callback(result)
+       }    
+    } 
+    
+    
+      function requestData(seriesid, mappingFunction) {
+            if(seriesid == activeSeriesId){
+                  getValuesFromAjax('/couchdb/timeseries?startkey=[%22'+seriesid+'%22,{}]&endkey=[%22'+seriesid+'%22]&descending=true&limit=10', 
+                                 function(result) { drawGraph(seriesid,result, mappingFunction);}, 
+                                 function(message) {alert('failed:'+message)})
+
+
+                  function drawGraph(seriesid,dataseries,mappingFunction) {
+                    console.log("in drawGraph");
+                    console.dataseries = dataseries
+	                    points = []; 
+	                    quality = [];
+	                    for(r in dataseries.rows){
+	                      var val = dataseries.rows[r].value
+		                    if(val.timestamp){
+                                  dd = Date.parseExact(val.timestamp.substring(0,19),"yyyy-MM-ddTHH:mm:ss");
+                                  
+                                  var value = mappingFunction(val.readings)
+			                            var point = [dd.getTime()- dd.getTimezoneOffset()*60*1000, value];
+                      				    points.push(point);
+		                     }
+	                    }
+	                    console.points = points
+	                    var series = chart.series[0]; 
+	                    series.setData(points,true);
+	                    
+	                    setTimeout(function() {requestData(seriesid,mappingFunction)}, 15000);  
+
+                  }
+           }       
+    }
+    
+    
+    function setupChart(seriesTitle, id, mappingFunction){
+          	Highcharts.setOptions({
+		            global: {
+		                useUTC: false
+		            }
+     	      });
+
+
+          chart = new Highcharts.Chart({
+              chart: {
+                  renderTo: 'container',
+                  defaultSeriesType: 'spline',
+                  zoomType: 'x',
+                  events: {
+                      load: function() { requestData(id, mappingFunction);}
+                  }
+              },
+              title: {
+                  text: 'Sensor Value'
+              },
+              xAxis: {
+                  type: 'datetime',
+                  tickPixelInterval: 150,
+                  maxZoom: 20 * 1000
+              },
+              yAxis: {
+                  minPadding: 0.2,
+                  maxPadding: 0.2,
+                  title: {
+                      text: 'Value',
+                      margin: 80
+                  }
+              },
+              series: [{
+                  name: seriesTitle,
+                  type: 'spline',
+                  data: []
+              } ],
+
+          });        
+     }
+    
+    
+      google.maps.event.addDomListener(window, 'load', initialize);
+
+    </script>
+</html>
