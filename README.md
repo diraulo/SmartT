@@ -1,7 +1,7 @@
 This is a project developed for the Space App challenge (20 - 21 April 2013)
 
 Project Overview
--------------------
+
 Bad weather changes have been prevalent in most part of South Africa
 Theses conditions have proven to be quite fatal especially in cities.
 Bad weather conditions affect our daily living in the city. And just
@@ -15,5 +15,6 @@ conditions at any time anywhere in the city and therefore plan their
 traffic route more efficiently and in a greener way.
 
 An Arduino based sensor system that captures temperatures, humidity, rainfall
-intensity and carbon monoxide level. 
+intensity and carbon monoxide level. The captured data are sent over to a server
+where all the data can be pulled and viewed on a webpage or a mobile device.
 
